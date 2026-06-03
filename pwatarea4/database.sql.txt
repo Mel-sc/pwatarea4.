@@ -1,16 +1,34 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const checkboxes = document.querySelectorAll(".task-checkbox");
+CREATE DATABASE IF NOT EXISTS pwatarea4;
+USE pwatarea4;
 
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener("change", (e) => {
-            const taskItem = e.target.closest(".task-item");
-            if (e.target.checked) {
-                taskItem.classList.add("completed");
-            } else {
-                taskItem.classList.remove("completed");
-            }
-            // Envía automáticamente los cambios para guardarse en la base de datos
-            e.target.closest("form").submit();
-        });
-    });
-});
+-- Tabla de Roles
+CREATE TABLE IF NOT EXISTS roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL
+);
+
+-- Insertar Roles
+INSERT INTO roles (nombre) VALUES ('Administrador'), ('Operador');
+
+-- Tabla de Usuarios
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role_id INT,
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+-- Insertar Usuarios de prueba (Contraseña para ambos: MelanieCagua2005)
+INSERT INTO usuarios (username, password, role_id) VALUES 
+('admin', '$2y$10$wKSTu6u9zNHeT9VfW.99fec6fR6IuX9S7927CsnwD1T.h2rY/9/H2', 1),
+('operador', '$2y$10$wKSTu6u9zNHeT9VfW.99fec6fR6IuX9S7927CsnwD1T.h2rY/9/H2', 2);
+
+-- Tabla de Tareas
+CREATE TABLE IF NOT EXISTS tareas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    completada TINYINT(1) DEFAULT 0,
+    usuario_id INT,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL
+);

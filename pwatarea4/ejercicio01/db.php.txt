@@ -1,4 +1,4 @@
-<?php
+https://cincodias.elpais.com/cincodias/2016/02/12/lifestyle/1455301274_514513.html<?php
 // Configura estos 3 datos con lo que te dé el panel de tu hosting:
 $host = 'CAMBIAR_POR_EL_SERVIDOR_DE_TU_HOSTING'; 
 $db   = 'CAMBIAR_POR_EL_NOMBRE_DE_TU_BASE_DE_DATOS'; 

@@ -1,34 +1,149 @@
+<?php
+session_start();
+require_once 'db.php';
+
+$error = '';
+
+// Procesar Inicio de Sesión
+if (isset($_POST['login'])) {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+
+    $stmt = $pdo->prepare('SELECT u.*, r.nombre as rol_nombre FROM usuarios u JOIN roles r ON u.role_id = r.id WHERE u.username = ?');
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+
+    if ($user && password_verify($password, $user['password'])) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['rol_nombre'];
+        header('Location: index.php');
+        exit;
+    } else {
+        $error = 'Usuario o contraseña incorrectos.';
+    }
+}
+
+// Procesar Cerrar Sesión
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header('Location: index.php');
+    exit;
+}
+
+// Acciones de Tareas (Solo si está logueado)
+if (isset($_SESSION['user_id'])) {
+    
+    // AGREGAR TAREA (Solo Administrador)
+    if (isset($_POST['add_task']) && $_SESSION['role'] === 'Administrador') {
+        $titulo = trim($_POST['titulo']);
+        if (!empty($titulo)) {
+            $stmt = $pdo->prepare('INSERT INTO tareas (titulo, usuario_id) VALUES (?, ?)');
+            $stmt->execute([$titulo, $_SESSION['user_id']]);
+        }
+        header('Location: index.php');
+        exit;
+    }
+
+    // MARCAR/DESMARCAR TAREA (Ambos roles)
+    if (isset($_POST['toggle_task'])) {
+        $task_id = $_POST['task_id'];
+        $completada = isset($_POST['completada']) ? 1 : 0;
+        
+        $stmt = $pdo->prepare('UPDATE tareas SET completada = ? WHERE id = ?');
+        $stmt->execute([$completada, $task_id]);
+        header('Location: index.php');
+        exit;
+    }
+
+    // ELIMINAR TAREA (Solo Administrador)
+    if (isset($_GET['delete_task']) && $_SESSION['role'] === 'Administrador') {
+        $task_id = $_GET['delete_task'];
+        $stmt = $pdo->prepare('DELETE FROM tareas WHERE id = ?');
+        $stmt->execute([$task_id]);
+        header('Location: index.php');
+        exit;
+    }
+}
+
+// Obtener todas las tareas
+$tareas = [];
+if (isset($_SESSION['user_id'])) {
+    $stmt = $pdo->query('SELECT * FROM tareas ORDER BY id DESC');
+    $tareas = $stmt->fetchAll();
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tarea Práctica 4 - Programación Web Avanzada</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; }
-        h1 { color: #2c3e50; margin-bottom: 10px; font-size: 24px; }
-        h2 { color: #7f8c8d; font-size: 16px; margin-bottom: 30px; font-weight: 400; }
-        .menu-list { list-style: none; padding: 0; margin: 0; }
-        .menu-list li { margin: 15px 0; }
-        .menu-list a { display: block; padding: 12px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background 0.3s ease; }
-        .menu-list a:hover { background: #2980b9; }
-        .menu-list a.disabled { background: #bdc3c7; cursor: not-allowed; pointer-events: none; }
-    </style>
+    <title>Ejercicio 1: Lista de Tareas Interactiva</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-    <h1>Programación Web Avanzada</h1>
-    <h2>Tarea Práctica 4 - Menú de Ejercicios</h2>
-    <ul class="menu-list">
-        <li><a href="ejercicio01/index.php">Ejercicio 1: Lista de Tareas Interactiva</a></li>
-        <li><a href="#" class="disabled">Ejercicio 2 (No requerido)</a></li>
-        <li><a href="#" class="disabled">Ejercicio 3 (No requerido)</a></li>
-        <li><a href="#" class="disabled">Ejercicio 4 (No requerido)</a></li>
-        <li><a href="#" class="disabled">Ejercicio 5 (No requerido)</a></li>
-    </ul>
+<div class="todo-container">
+    <p><a href="../index.php" style="text-decoration: none; color: #3498db;">← Volver al Menú Principal</a></p>
+    
+    <?php if (!isset($_SESSION['user_id'])): ?>
+        <!-- FORMULARIO DE LOGIN -->
+        <h2>Iniciar Sesión</h2>
+        <p style="text-align:center; color:#7f8c8d; font-size:14px;">Prueba con: <b>admin</b> o <b>operador</b> <br> Contraseña: <b>MelanieCagua2005</b></p>
+        
+        <?php if ($error): ?>
+            <div class="alert"><?= $error ?></div>
+        <?php endif; ?>
+
+        <form action="index.php" method="POST" class="login-form">
+            <input type="text" name="username" placeholder="Usuario" required>
+            <input type="password" name="password" placeholder="Contraseña" required>
+            <button type="submit" name="login" class="btn btn-primary">Ingresar</button>
+        </form>
+
+    <?php else: ?>
+        <!-- PANEL DE CONTROL DE TAREAS -->
+        <div class="user-info">
+            <span>Bienvenido: <b><?= htmlspecialchars($_SESSION['username']) ?></b> (<i><?= $_SESSION['role'] ?></i>)</span>
+            <a href="index.php?logout=1" class="btn-logout">Cerrar Sesión</a>
+        </div>
+
+        <h3>Lista de Tareas Interactivas</h3>
+
+        <!-- AGREGAR TAREA -->
+        <?php if ($_SESSION['role'] === 'Administrador'): ?>
+            <form action="index.php" method="POST" class="task-form">
+                <input type="text" name="titulo" placeholder="Escribe una nueva tarea..." required>
+                <button type="submit" name="add_task" class="btn btn-primary">Agregar Tarea</button>
+            </form>
+        <?php else: ?>
+            <p class="alert" style="background:#e8f4fd; color:#2980b9;">Como <b>Operador</b>, puedes ver y marcar tareas pero no añadir ni eliminar.</p>
+        <?php endif; ?>
+
+        <!-- LISTA DE TAREAS -->
+        <ul class="task-list">
+            <?php if (count($tareas) === 0): ?>
+                <li style="text-align: center; color: #7f8c8d; padding: 20px;">No hay tareas pendientes.</li>
+            <?php endif; ?>
+            
+            <?php foreach ($tareas as $tarea): ?>
+                <li class="task-item <?= $tarea['completada'] ? 'completed' : '' ?>">
+                    <form action="index.php" method="POST" style="display: inline; flex-grow: 1; display: flex; align-items: center;">
+                        <input type="hidden" name="task_id" value="<?= $tarea['id'] ?>">
+                        <input type="hidden" name="toggle_task" value="1">
+                        <input type="checkbox" name="completada" class="task-checkbox" <?= $tarea['completada'] ? 'checked' : '' ?>>
+                        <span class="task-text"><?= htmlspecialchars($tarea['titulo']) ?></span>
+                    </form>
+
+                    <?php if ($_SESSION['role'] === 'Administrador'): ?>
+                        <a href="index.php?delete_task=<?= $tarea['id'] ?>" class="btn btn-danger" onclick="return confirm('¿Seguro que deseas eliminar esta tarea?')">Eliminar</a>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
 </div>
 
+<script src="script.js"></script>
 </body>
 </html>

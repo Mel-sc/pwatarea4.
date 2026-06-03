@@ -1,0 +1,16 @@
+document.addEventListener("DOMContentLoaded", () => {
+    const checkboxes = document.querySelectorAll(".task-checkbox");
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener("change", (e) => {
+            const taskItem = e.target.closest(".task-item");
+            if (e.target.checked) {
+                taskItem.classList.add("completed");
+            } else {
+                taskItem.classList.remove("completed");
+            }
+            // Envía automáticamente los cambios para guardarse en la base de datos
+            e.target.closest("form").submit();
+        });
+    });
+});
